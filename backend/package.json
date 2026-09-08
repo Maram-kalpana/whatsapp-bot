@@ -1,0 +1,29 @@
+{
+  "name": "@whatsapp-saas/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:create": "sequelize-cli db:create"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.3",
+    "razorpay": "^2.9.8",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "sequelize-cli": "^6.6.3"
+  }
+}

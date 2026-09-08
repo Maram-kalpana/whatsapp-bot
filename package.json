@@ -1,0 +1,16 @@
+{
+  "name": "whatsapp-saas",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:web": "npm run dev -w @whatsapp-saas/web",
+    "dev:api": "npm run dev -w @whatsapp-saas/api",
+    "db:migrate": "npm run db:migrate -w @whatsapp-saas/api",
+    "db:migrate:undo": "npm run db:migrate:undo -w @whatsapp-saas/api"
+  }
+}

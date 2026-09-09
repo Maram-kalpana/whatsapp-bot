@@ -8,10 +8,10 @@ const {
   ContactGroup,
   ContactGroupMember,
   Job,
-  WhatsappNumber,
 } = require("../../models");
 const { HttpError } = require("../../utils/httpError");
 const { parseCsv, digitsPhone } = require("../../lib/csv");
+const { resolveWaNumber } = require("../../lib/messaging");
 
 function parseSteps(raw) {
   if (Array.isArray(raw)) return raw;
@@ -40,6 +40,7 @@ function publicCampaign(row) {
     schedule_type: row.schedule_type,
     scheduled_at: row.scheduled_at,
     status: row.status,
+    last_error: row.last_error || null,
     recipient_count: row.recipient_count,
     sent_count: row.sent_count,
     delivered_count: row.delivered_count,
@@ -166,8 +167,7 @@ async function getById(businessId, id) {
 async function createBroadcast(businessId, body, file) {
   const template = await Template.findOne({ where: { id: body.template_id, business_id: businessId } });
   if (!template) throw new HttpError(404, "Template not found");
-  const wa = await WhatsappNumber.findOne({ where: { business_id: businessId }, order: [["id", "ASC"]] });
-  if (!wa?.phone_number_id) throw new HttpError(400, "Connect a WhatsApp number in Account settings first");
+  const wa = await resolveWaNumber({ businessId });
 
   const contacts = await resolveRecipients(businessId, body.recipient_source === "csv_upload" ? { ...body, file } : body);
   if (!contacts.length) throw new HttpError(400, "No recipients found");
@@ -214,8 +214,7 @@ async function createDrip(businessId, body, file) {
     throw new HttpError(400, "One or more templates were not found");
   }
 
-  const wa = await WhatsappNumber.findOne({ where: { business_id: businessId }, order: [["id", "ASC"]] });
-  if (!wa?.phone_number_id) throw new HttpError(400, "Connect a WhatsApp number in Account settings first");
+  const wa = await resolveWaNumber({ businessId });
 
   const contacts = await resolveRecipients(businessId, body.recipient_source === "csv_upload" ? { ...body, file } : body);
   if (!contacts.length) throw new HttpError(400, "No recipients found");

@@ -56,6 +56,7 @@ export default function ChatBotPage() {
     try {
       setCreating(true);
       const bot = await createChatbot({ name: "New Chat Bot", timeout_minutes: 30, trigger_keywords: [] });
+      if (!bot?.id) throw new Error("Chatbot was created but no id was returned");
       navigate(`/chat-bot/${bot.id}`);
     } catch (err) {
       setError(apiErrorMessage(err, "Failed to create chatbot"));

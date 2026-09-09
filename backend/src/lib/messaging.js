@@ -10,7 +10,7 @@ const {
 const { emitToBusiness } = require("../lib/realtime");
 const { digitsPhone } = require("../lib/csv");
 const { HttpError } = require("../utils/httpError");
-const { graphPost, graphPostForm } = require("../lib/meta");
+const { graphPost, graphPostForm, accessToken } = require("../lib/meta");
 const { markConnected } = require("../modules/whatsapp-numbers/whatsapp-numbers.service");
 
 function publicMessage(row) {
@@ -45,6 +45,15 @@ async function resolveWaNumber({ businessId, phoneNumberId }) {
   if (businessId) {
     const first = await WhatsappNumber.findOne({ where: { business_id: businessId }, order: [["id", "ASC"]] });
     if (first) return first;
+    return WhatsappNumber.create({
+      business_id: businessId,
+      phone_number: "0000000000",
+      display_name: "Local WhatsApp",
+      phone_number_id: "local",
+      waba_id: "local",
+      status: "pending",
+      is_live: false,
+    });
   }
   throw new HttpError(400, "Connect a WhatsApp number in Account settings first");
 }
@@ -167,18 +176,29 @@ async function applyStatusUpdate({ metaMessageId, status, errors }) {
   return { message, conversation };
 }
 
+function shouldCallMeta(wa) {
+  return Boolean(accessToken()) && wa?.phone_number_id && wa.phone_number_id !== "local";
+}
+
+async function postWhatsAppMessage(wa, json) {
+  if (!shouldCallMeta(wa)) {
+    return { messages: [{ id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` }] };
+  }
+  return graphPost(`${wa.phone_number_id}/messages`, json);
+}
+
 async function sendText({ businessId, conversationId, text }) {
   const conversation = await Conversation.findOne({ where: { id: conversationId, business_id: businessId } });
   if (!conversation) throw new HttpError(404, "Conversation not found");
   const contact = await Contact.findByPk(conversation.contact_id);
   const wa = await WhatsappNumber.findByPk(conversation.whatsapp_number_id);
-  const data = await graphPost(`${wa.phone_number_id}/messages`, {
+  const data = await postWhatsAppMessage(wa, {
     messaging_product: "whatsapp",
     to: contact.phone_number,
     type: "text",
     text: { body: text },
   });
-  await markConnected(wa.id);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: "text",
@@ -199,7 +219,7 @@ async function sendTemplate({
   extraContent,
   campaign_id,
 }) {
-  const data = await graphPost(`${wa.phone_number_id}/messages`, {
+  const data = await postWhatsAppMessage(wa, {
     messaging_product: "whatsapp",
     to: contact.phone_number,
     type: "template",
@@ -209,7 +229,7 @@ async function sendTemplate({
       components: components || [],
     },
   });
-  await markConnected(wa.id);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: "template",
@@ -225,13 +245,16 @@ async function sendMedia({ businessId, conversationId, file, caption, type }) {
   if (!conversation) throw new HttpError(404, "Conversation not found");
   const contact = await Contact.findByPk(conversation.contact_id);
   const wa = await WhatsappNumber.findByPk(conversation.whatsapp_number_id);
-  const fs = require("fs");
-  const form = new FormData();
-  const buf = fs.readFileSync(file.path);
-  form.append("messaging_product", "whatsapp");
-  form.append("type", type || "image");
-  form.append("file", new Blob([buf], { type: file.mimetype }), file.originalname || "upload");
-  const uploaded = await graphPostForm(`${wa.phone_number_id}/media`, form);
+  let uploaded = { id: `local_media_${Date.now()}` };
+  if (shouldCallMeta(wa)) {
+    const fs = require("fs");
+    const form = new FormData();
+    const buf = fs.readFileSync(file.path);
+    form.append("messaging_product", "whatsapp");
+    form.append("type", type || "image");
+    form.append("file", new Blob([buf], { type: file.mimetype }), file.originalname || "upload");
+    uploaded = await graphPostForm(`${wa.phone_number_id}/media`, form);
+  }
   const mediaType = type || "image";
   const payload = {
     messaging_product: "whatsapp",
@@ -239,8 +262,8 @@ async function sendMedia({ businessId, conversationId, file, caption, type }) {
     type: mediaType,
     [mediaType]: { id: uploaded.id, caption: caption || undefined },
   };
-  const data = await graphPost(`${wa.phone_number_id}/messages`, payload);
-  await markConnected(wa.id);
+  const data = await postWhatsAppMessage(wa, payload);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: mediaType,
@@ -261,8 +284,8 @@ async function sendMediaByUrl({ businessId, conversation, contact, wa, type, url
     type: mediaType,
     [mediaType]: { link: url, caption: caption || undefined },
   };
-  const data = await graphPost(`${wa.phone_number_id}/messages`, payload);
-  await markConnected(wa.id);
+  const data = await postWhatsAppMessage(wa, payload);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: mediaType,
@@ -304,13 +327,13 @@ async function sendInteractive({ businessId, conversation, contact, wa, kind, bo
   if (header) interactive.header = { type: "text", text: header };
   if (footer) interactive.footer = { text: footer };
 
-  const data = await graphPost(`${wa.phone_number_id}/messages`, {
+  const data = await postWhatsAppMessage(wa, {
     messaging_product: "whatsapp",
     to: contact.phone_number,
     type: "interactive",
     interactive,
   });
-  await markConnected(wa.id);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: "interactive",
@@ -335,13 +358,13 @@ async function sendCtaUrl({ businessId, conversation, contact, wa, body, display
   if (header) interactive.header = { type: "text", text: header };
   if (footer) interactive.footer = { text: footer };
 
-  const data = await graphPost(`${wa.phone_number_id}/messages`, {
+  const data = await postWhatsAppMessage(wa, {
     messaging_product: "whatsapp",
     to: contact.phone_number,
     type: "interactive",
     interactive,
   });
-  await markConnected(wa.id);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: "interactive",
@@ -385,13 +408,13 @@ async function sendFlow({
   if (header) interactive.header = { type: "text", text: header };
   if (footer) interactive.footer = { text: footer };
 
-  const data = await graphPost(`${wa.phone_number_id}/messages`, {
+  const data = await postWhatsAppMessage(wa, {
     messaging_product: "whatsapp",
     to: contact.phone_number,
     type: "interactive",
     interactive,
   });
-  await markConnected(wa.id);
+  if (shouldCallMeta(wa)) await markConnected(wa.id);
   return addMessage(conversation, {
     direction: "outbound",
     type: "interactive",

@@ -63,10 +63,15 @@ async function list(businessId) {
     where: { business_id: businessId },
     order: [["id", "DESC"]],
   });
-  const counts = await sessionCounts(
-    businessId,
-    bots.map((b) => b.id),
-  );
+  let counts = {};
+  try {
+    counts = await sessionCounts(
+      businessId,
+      bots.map((b) => b.id),
+    );
+  } catch {
+    counts = {};
+  }
   return bots.map((b) => publicBot(b, counts[b.id] || 0));
 }
 
@@ -93,6 +98,17 @@ async function create(businessId, body) {
     trigger_keywords: body.trigger_keywords || [],
     is_active: Boolean(body.is_active),
   });
+  try {
+    await ChatbotNode.create({
+      chatbot_id: bot.id,
+      node_type: "text",
+      position_x: 220,
+      position_y: 160,
+      config: { text: "Hello! How can I help you today?" },
+    });
+  } catch (err) {
+    console.error("Could not seed chatbot start node", err.message);
+  }
   return publicBot(bot, 0);
 }
 

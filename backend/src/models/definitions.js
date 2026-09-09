@@ -149,6 +149,7 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: "draft",
       },
+      last_error: DataTypes.TEXT,
       recipient_count: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
       sent_count: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
       delivered_count: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
@@ -434,6 +435,7 @@ module.exports = (sequelize) => {
       },
       run_after: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
       attempts: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
+      last_error: DataTypes.TEXT,
     },
     { tableName: "jobs", underscored: true, updatedAt: false },
   );

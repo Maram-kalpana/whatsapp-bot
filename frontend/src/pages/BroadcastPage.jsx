@@ -172,7 +172,10 @@ export default function BroadcastPage() {
                     <td className="px-5 py-5 text-sm text-slate-700">{row.sent_count} / {row.delivered_count} / {row.read_count}</td>
                     <td className="px-5 py-5 text-sm text-slate-700">{row.failed_count}</td>
                     <td className="px-5 py-5">
-                      <span className={`inline-flex rounded-lg border px-3 py-1.5 text-sm font-semibold ${statusClass(label)}`}>{label}</span>
+                      <span className={`inline-flex rounded-lg border px-3 py-1.5 text-sm font-semibold ${statusClass(label)}`} title={row.last_error || ""}>{label}</span>
+                      {row.last_error && label === "Failed" && (
+                        <p className="mt-1 max-w-[220px] truncate text-xs text-rose-500" title={row.last_error}>{row.last_error}</p>
+                      )}
                     </td>
                     <td className="px-5 py-5">
                       <button onClick={() => remove(row.id)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500">

@@ -52,9 +52,9 @@ function DashboardRoutes() {
         <Route path="/templates/create" element={<CreateTemplatePage />} />
         <Route path="/contacts" element={<ContactsPage />} />
         <Route path="/lead-magnets" element={<LeadMagnetsPage />} />
-        <Route path="/lead-magnets/:id" element={<LeadMagnetBuilderPage />} />
         <Route path="/lead-magnets/website-widget" element={<WebsiteWidgetPage />} />
         <Route path="/lead-magnets/qr-code" element={<QRCodePage />} />
+        <Route path="/lead-magnets/:id" element={<LeadMagnetBuilderPage />} />
         <Route path="/chat-bot" element={<ChatBotPage />} />
         <Route path="/chat-bot/:id" element={<ChatBotBuilderPage />} />
         <Route path="/flows" element={<FlowsPage />} />

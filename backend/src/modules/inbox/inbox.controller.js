@@ -28,7 +28,7 @@ const inboxController = {
   }),
 
   open: asyncHandler(async (req, res) => {
-    const conversation = await inboxService.openConversation(req.business.id, Number(req.body.contact_id));
+    const conversation = await inboxService.openConversation(req.business.id, req.body);
     res.status(201).json({ conversation });
   }),
 };

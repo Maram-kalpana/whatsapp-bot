@@ -7,7 +7,7 @@ const {
   resolveWaNumber,
 } = require("../lib/messaging");
 const { bodyComponents } = require("../modules/inbox/inbox.service");
-const { languageCode } = require("../lib/meta");
+const { languageCode, sanitizeTemplateName, accessToken } = require("../lib/meta");
 const { emitToBusiness } = require("../lib/realtime");
 const { assertCanSend, deductForMessage } = require("../lib/wallet");
 
@@ -40,7 +40,13 @@ async function maybeCompleteCampaign(campaignId) {
   if (!campaign || campaign.status === "completed") return;
   campaign.status = campaign.sent_count === 0 ? "failed" : "completed";
   await campaign.save();
-  emitToBusiness(campaign.business_id, "campaign:updated", { campaignId: campaign.id, status: campaign.status });
+  emitToBusiness(campaign.business_id, "campaign:updated", {
+    campaignId: campaign.id,
+    status: campaign.status,
+    last_error: campaign.last_error,
+    sent_count: campaign.sent_count,
+    failed_count: campaign.failed_count,
+  });
 }
 
 async function chainNextDripStep(job, campaign) {
@@ -91,7 +97,8 @@ async function dispatchSend(job) {
   const template = await Template.findByPk(payload.template_id || campaign.template_id);
   if (!contact || !template) throw new Error("Contact or template missing");
 
-  await assertCanSend(campaign.business_id);
+  const live = Boolean(accessToken()) && wa?.phone_number_id && wa.phone_number_id !== "local";
+  if (live) await assertCanSend(campaign.business_id);
 
   const conversation = await findOrCreateConversation(campaign.business_id, contact, wa);
   await sendTemplate({
@@ -99,15 +106,17 @@ async function dispatchSend(job) {
     conversation,
     contact,
     wa,
-    templateName: template.name,
+    templateName: sanitizeTemplateName(template.name),
     language: languageCode(template.language),
     components: bodyComponents(template, contact),
     extraContent: { campaign_id: campaign.id, drip_step_id: payload.drip_step_id || null },
     campaign_id: campaign.id,
   });
 
-  await deductForMessage(campaign.business_id);
-  emitToBusiness(campaign.business_id, "wallet:updated", {});
+  if (live) {
+    await deductForMessage(campaign.business_id);
+    emitToBusiness(campaign.business_id, "wallet:updated", {});
+  }
 
   campaign.sent_count += 1;
   await campaign.save();
@@ -154,15 +163,17 @@ async function pollJobs() {
     try {
       await processJob(job);
     } catch (err) {
-      await job.update({ status: "failed", attempts: job.attempts + 1 });
+      await job.update({ status: "failed", attempts: job.attempts + 1, last_error: String(err.message || err) });
       if (job.campaign_id) {
         const campaign = await Campaign.findByPk(job.campaign_id);
         if (campaign) {
           campaign.failed_count += 1;
+          campaign.last_error = String(err.message || err);
           await campaign.save();
           emitToBusiness(campaign.business_id, "campaign:updated", {
             campaignId: campaign.id,
             failed_count: campaign.failed_count,
+            last_error: campaign.last_error,
           });
           await maybeCompleteCampaign(campaign.id);
         }

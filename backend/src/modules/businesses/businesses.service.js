@@ -31,7 +31,7 @@ async function createBusiness(user, { name, industry }, file) {
         industry: industry || null,
         logo_url: logoPath(file),
         owner_user_id: user.id,
-        wallet_balance: 0,
+        wallet_balance: 1000,
         quality_score: "high",
         daily_limit_tier: "250",
         plan: "trial",

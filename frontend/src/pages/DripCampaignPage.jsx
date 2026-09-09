@@ -92,7 +92,7 @@ export default function DripCampaignPage() {
             <span>{row.steps?.length || 0}</span>
             <span>{row.recipient_count}</span>
             <span>{row.sent_count} / {row.read_count} / {row.failed_count}</span>
-            <span className="font-semibold text-slate-700">{statusLabel(row)}</span>
+            <span className="font-semibold text-slate-700" title={row.last_error || ""}>{statusLabel(row)}</span>
             <button onClick={() => remove(row.id)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500">
               <Trash2 size={16} />
             </button>

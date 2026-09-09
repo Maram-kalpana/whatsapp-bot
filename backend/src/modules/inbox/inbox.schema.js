@@ -6,7 +6,9 @@ const assignBody = Joi.object({
 });
 
 const openBody = Joi.object({
-  contact_id: Joi.number().integer().required(),
-});
+  contact_id: Joi.number().integer(),
+  name: Joi.string().trim().max(191).allow("", null),
+  phone_number: Joi.string().trim().max(32),
+}).or("contact_id", "phone_number");
 
 module.exports = { assignBody, openBody };

@@ -100,9 +100,28 @@ async function markRead(businessId, conversationId) {
   return publicConversation(conversation);
 }
 
-async function openConversation(businessId, contactId) {
-  const contact = await Contact.findOne({ where: { id: contactId, business_id: businessId } });
-  if (!contact) throw new HttpError(404, "Contact not found");
+async function openConversation(businessId, body) {
+  let contact = null;
+  if (body.contact_id) {
+    contact = await Contact.findOne({ where: { id: body.contact_id, business_id: businessId } });
+    if (!contact) throw new HttpError(404, "Contact not found");
+  } else {
+    const { digitsPhone } = require("../../lib/csv");
+    const phone_number = digitsPhone(body.phone_number);
+    if (!phone_number) throw new HttpError(400, "A WhatsApp number is required");
+    contact = await Contact.findOne({ where: { business_id: businessId, phone_number } });
+    if (!contact) {
+      contact = await Contact.create({
+        business_id: businessId,
+        name: (body.name && String(body.name).trim()) || phone_number,
+        phone_number,
+        source: "inbox",
+      });
+    } else if (body.name && contact.name === contact.phone_number) {
+      contact.name = String(body.name).trim();
+      await contact.save();
+    }
+  }
   const wa = await resolveWaNumber({ businessId, phoneNumberId: null });
   const conversation = await findOrCreateConversation(businessId, contact, wa);
   const withContact = await Conversation.findByPk(conversation.id, {

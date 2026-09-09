@@ -4,6 +4,7 @@ import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  ReactFlowProvider,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -31,6 +32,14 @@ import { btnOutline, btnPrimary, inputCls, Modal } from "../components/UiKit";
 const nodeTypes = { chatbot: ChatbotFlowNode };
 
 export default function ChatBotBuilderPage() {
+  return (
+    <ReactFlowProvider>
+      <ChatBotBuilderCanvas />
+    </ReactFlowProvider>
+  );
+}
+
+function ChatBotBuilderCanvas() {
   const { id } = useParams();
   const navigate = useNavigate();
   const reactFlowWrapper = useRef(null);
